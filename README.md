@@ -110,7 +110,7 @@ UPDATE layoffs_staging2
 SET company = trim(company);
 ```
 
-- Word Correction
+- Word correction
 
 ```sql
 SELECT *
@@ -123,7 +123,7 @@ SET industry = 'Crypto'
 WHERE industry LIKE 'Crypto%';
 ```
 
-- Full Stop Removal
+- Full stop removal
 
 ```sql
 SELECT *
