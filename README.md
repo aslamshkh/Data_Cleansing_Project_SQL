@@ -1,81 +1,201 @@
-# DataAnalysis_Project_SQL
+# Data Cleansing
 
-## The table of contents
+### The table of contents
 
 - [Project Overview](#project-overview)
 - [Data Source](#data-source)
-- [Tools](#tools)
-- [Data Cleaning/Preparation](#sata-cleaning/preparation)
-- [Exploratory Data Analysis (EDA)](#exploratory-data-analysis-(EDA))
-- [Data Analysis](#data-analysis)
-- [Results/Findings](#results/findings)
-- [Recommendations](#recommendations)
-- [Limitations](#limitations)
-- [Referencing](#referencing)
+- [Data Preparation](#data-preparation)
+- [Codes](#codes)
+
 
 ### Project Overview
 
-This data analysis project aims to provide insights into the sale performance of an e-Commers company over the past year. By analysing various aspects of the sales data, we seek to identify trends, make data driven recommendations, and gain understanding of the company's preference. 
+This data cleaning and preparation project aims to demonstrate the step by step data cleaning process before making it available for **Exploratory Data Analysis**. The aim is to provide a clean data set to gain the accurate answers making buisness dicisions easy. The data sheds light on how companies laied off their empoyees at the time of Pandemic. 
 
 ### Data Source
 
-The dataset used in this project is "sales_data.csv" containing data  about the sales made by the company.
+The dataset used for the project has been taken from a GitHub repositry showcasing the drasting layoff duering the Pandemic. The raw data consited 2361 rows in total which came down to 1995 rows after cleanign the data. The data has details on Companies, Industries, Location, and Countires mass layoff.
+
+### Data Preparation
+
+The raw data (CSV) file was uploaded directly to the workbench without making any changes at the innitial stage. All the changes were done at the later stage (cleaning).
+A duplicate data set was created to do all the cleaning without changing the raw data as a precaution.
+The data did not have any "Primary Key" column, making it difficult to process. Hence, created a new column with the help of Row_Number function.
 
 
-### Tools
+### Codes
 
-- Excel:      Data Cleaning [Click Here](https://github.com/aslamshaikhisdi/SQL-Portfolio-Project/edit/updatefile/README.md)
-- SQL Server: Data Analysis
-- PowerBI:    Report
-
-### Data Cleaning/Preparation
-
-#### Following steps were followed at the initial data preparation stage.
-
-Data loading and inspection
-Handling missing volume
-Data cleaning and formatting
-
-### Exploratory Data Analysis (EDA)
-
-#### EDA involves data exploration to understand the data to answer the key questions.
-
-1. What the overall sales trend?
-2. Which products are the top sale?
-3. What are the peak sales period?
-
-### Data Analysis
-
-#### Following codes were used to perform some of the important steps.
+**1. Duplicate table creation and data importing**
 
 ```sql
-SELECT * FROM table
-WHERE code = 2;
+CREATE TABLE layoffs_staging
+LIKE layoffs;
+```
+```sql
+INSERT layoffs_staging
+SELECT * FROM layoffs;
 ```
 
-### Results/Findings
+**2. New column creation (Row_Number)**
 
-#### The analysis of the data gives the following insights
+```sql
+SELECT *,
+ROW_NUMBER() OVER(
+PARTITION BY company, industry, total_laid_off, percentage_laid_off, `date`) AS row_num
+FROM layoffs_staging;
+```
 
-- The sales has been trending upwards over the year with the holiday peak time.
-- Christmas makes the best time of the year with the highest sale increase. 
-- Product category "A" is the top selling category. 
+**3. CTE creation to analyse the duplicate entries**
 
-### Recommendations
+```sql
+WITH duplicate_cte AS
+(
+SELECT *,
+ROW_NUMBER() OVER(
+PARTITION BY company, location, industry, total_laid_off, percentage_laid_off, `date`, stage, country, funds_raised_millions) AS row_num
+FROM layoffs_staging
+)
+SELECT * 
+from duplicate_cte
+WHERE row_num > 1;
+```
 
-#### Following are the recommendations based on the analysis.
+**4. A new table creation with the row_number column as MySQL doesn't allow column deletion in CTE**
 
-- Investment in marketing and promotion in off peak time to promote more incoming. 
-- Holidays season doesn't require any change in marketing as it is going to get sales as season shopping.
-- Discounts must be introduced in peak and non peak seasons with a small variation but huge discounts be given at the non peak ours to increase the sales.
+```sql
+CREATE TABLE `layoffs_staging2` (
+  `company` text,
+  `location` text,
+  `industry` text,
+  `total_laid_off` int DEFAULT NULL,
+  `percentage_laid_off` text,
+  `date` text,
+  `stage` text,
+  `country` text,
+  `funds_raised_millions` int DEFAULT NULL,
+  `row_num` int
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+```sql
+INSERT INTO layoffs_staging2
+SELECT *,
+ROW_NUMBER() OVER(
+PARTITION BY company, location, industry, total_laid_off, percentage_laid_off, `date`, stage, country, funds_raised_millions) AS row_num
+FROM layoffs_staging;
+```
 
+**5. Finding, Analysing and Deleting the duplicate entries**
 
-### Limitations
+```sql
+SELECT * 
+FROM layoffs_staging2
+WHERE row_num > 1;
+```
+```sql
+DELETE
+FROM layoffs_staging2
+WHERE row_num > 1;
+```
 
-I had to remove all the zero values from the budget and revenue columns because they would have affected the accuracy of the conclusion from the analysis. There are still a few outlier after being omitted/ However, even then we have seen a positive collaboration between budget and number of votes with revenue. 
+**6. Standerdizing Data : removed spaces/fullstops, words correction, data type change and formatting**
 
+ - Space removal
 
-### Referencing
+```sql
+SELECT company, trim(company)
+FROM layoffs_staging2;
+```
+```sql
+UPDATE layoffs_staging2
+SET company = trim(company);
+```
 
-1. SQL for Business by Werty.
-2. [STACK OVERFLOW](https://stack.com)
+- Word Correction
+
+```sql
+SELECT *
+FROM layoffs_staging2
+WHERE industry LIKE 'Crypto%';
+```
+```sql
+UPDATE layoffs_staging2
+SET industry = 'Crypto'
+WHERE industry LIKE 'Crypto%';
+```
+
+- Full Stop Removal
+
+```sql
+SELECT *
+FROM layoffs_staging2
+WHERE country LIKE 'United States%';
+```
+```sql
+UPDATE layoffs_staging2
+SET country = TRIM(TRAILING '.' FROM Country)
+WHERE country LIKE 'United States%';
+```
+
+- Date column formatting and data type change
+
+```sql
+SELECT `date`,
+STR_TO_DATE(`date`, '%m/%d/%Y')
+FROM layoffs_staging2;
+```
+```sql
+UPDATE layoffs_staging2
+SET `date` = STR_TO_DATE(`date`, '%m/%d/%Y');
+```
+```sql
+ALTER TABLE layoffs_staging2
+MODIFY COLUMN `date` DATE;
+```
+
+**7. Null and Empty values check**
+
+```sql
+SELECT *
+FROM layoffs_staging2
+WHERE company IS NULL
+OR company = '';
+```
+
+- Compared the columns for possible matching values through self join
+
+```sql
+SELECT *
+FROM layoffs_staging2 t1
+JOIN layoffs_staging2 t2
+	ON t1.company = t2.company
+WHERE (t1.industry IS NULL OR t1.industry = '')
+AND t2.industry IS NOT NULL;
+```
+
+- Replaced all the empty values with the NULL to update them together
+
+```sql
+UPDATE layoffs_staging2
+SET industry = null
+WHERE industry = '';
+```
+```sql
+UPDATE layoffs_staging2 t1
+JOIN layoffs_staging2 t2
+	ON t1.company = t2.company
+SET t1.industry = t2.industry
+WHERE (t1.industry IS NULL OR t1.industry = '')
+AND t2.industry IS NOT NULL;
+```
+
+**8. Droped row_number columns after all the possible changes**
+
+```sql
+ALTER TABLE layoffs_staging2
+DROP COLUMN row_num;
+```
+
+> [!NOTE]
+> The full coding details can be found on the SQL file attached to the repositry.
+> Some of null values not been removed from certain columns as the other information in the row found to be usfull for EDA.
+
