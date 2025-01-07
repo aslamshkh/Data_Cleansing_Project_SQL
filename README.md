@@ -1,6 +1,6 @@
 # Data Cleansing
 
-### The table of contents
+### The Table Of Contents
 
 - [Project Overview](#project-overview)
 - [Data Source](#data-source)
