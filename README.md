@@ -1,4 +1,4 @@
-# 📉 Global Layoffs Analaysis
+# 📉 Global Layoff Analaysis
 
 
 ## 📑 The Table Of Contents
